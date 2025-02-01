@@ -147,17 +147,7 @@ CREATE TABLE resident_conflicts (
     FOREIGN KEY (id_conflit) REFERENCES Conflit(id_conflit) ON DELETE CASCADE,
     FOREIGN KEY (id_resident) REFERENCES Resident(id_resident) ON DELETE CASCADE
 );
-CREATE TABLE RESIDENT_CONFILTS (
-    id_resident INT NOT NULL,
-    id_conflit INT NOT NULL,
-    PRIMARY KEY (id_resident, id_conflit),
-    CONSTRAINT fk_if_resident FOREIGN KEY (id_resident)
-        REFERENCES Resident (id_resident)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_id_conflit FOREIGN KEY (id_conflit)
-        REFERENCES Conflit (id_conflit)
-        ON DELETE CASCADE
-);
+
 
 CREATE TABLE Evenement (
     id_evenement SERIAL PRIMARY KEY,
