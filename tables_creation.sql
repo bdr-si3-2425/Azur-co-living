@@ -6,7 +6,6 @@ CREATE TABLE Type_logement (
 
 CREATE TABLE Logement (
     id_logement SERIAL PRIMARY KEY,
-    type_logement VARCHAR(50) NOT NULL,
     emplacement VARCHAR(100) NOT NULL,
     surface FLOAT CHECK (surface > 0),
     loyer FLOAT CHECK (loyer >= 0),
@@ -29,12 +28,16 @@ CREATE TABLE Equipement (
 
 CREATE TABLE Chambre (
     id_chambre SERIAL PRIMARY KEY,
+	numero_chambre VARCHAR(10),
     etat VARCHAR(20) NOT NULL,
     id_logement INT NOT NULL,
+	CONSTRAINT uq_chambre UNIQUE (id_logement, numero_chambre),--pour eviter des chambres en double dans un meme logement
     CONSTRAINT fk_logement_chambre FOREIGN KEY (id_logement)
         REFERENCES Logement (id_logement)
         ON DELETE CASCADE
 );
+
+
 
 CREATE TABLE Profil (
     id_profil SERIAL PRIMARY KEY,
@@ -61,7 +64,7 @@ CREATE TABLE Resident (
 CREATE TABLE Reservation (
     id_reservation SERIAL PRIMARY KEY,
     date_debut DATE NOT NULL,
-    date_fin DATE NOT NULL,
+    date_fin DATE CHECK (date_fin >= date_debut),
     id_logement INT NOT NULL,
     id_resident INT NOT NULL,
     CONSTRAINT fk_logement_reservation FOREIGN KEY (id_logement)
@@ -82,7 +85,6 @@ CREATE TABLE Type_intervention (
 
 CREATE TABLE Intervention (
     id_intervention SERIAL PRIMARY KEY,
-    type_intervention VARCHAR(50) NOT NULL,
     description TEXT,
     id_type_intervention INT NOT NULL,
     CONSTRAINT fk_id_type_intervention FOREIGN KEY (id_type_intervention)
@@ -95,16 +97,17 @@ CREATE TABLE Intervention (
 CREATE TABLE Conflit (
     id_conflit SERIAL PRIMARY KEY,
     description TEXT NOT NULL,
-    resolu VARCHAR(10)  CHECK (resolu in ('oui', 'En cours','non')),
+    resolu VARCHAR(10) CHECK (resolu in ('oui', 'En cours','non')),
     date_conflit DATE NOT NULL,
-    id_resident INT NOT NULL
+    id_resident INT NOT NULL,
+	CONSTRAINT fk_id_resident FOREIGN KEY (id_resident) REFERENCES Resident(id_resident) ON DELETE CASCADE
 );
 
 
 CREATE TABLE Resident_conflicts (
-    id SERIAL PRIMARY KEY,
     id_conflit INT NOT NULL,
     id_resident INT NOT NULL,
+	PRIMARY KEY (id_conflit, id_resident),
     role_resident VARCHAR(10) check ( role_resident in ('initiateur', 'accuse', 'temoin') ),
     FOREIGN KEY (id_conflit) REFERENCES Conflit(id_conflit) ON DELETE CASCADE,
     FOREIGN KEY (id_resident) REFERENCES Resident(id_resident) ON DELETE CASCADE
