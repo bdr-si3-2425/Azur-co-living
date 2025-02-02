@@ -1,0 +1,3 @@
+id_chambre,numero_chambre,etat,id_logement
+1,101,Libre,1
+2,102,Occupé,1
