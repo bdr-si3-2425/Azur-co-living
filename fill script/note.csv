@@ -1,0 +1,3 @@
+id_note,id_logement,id_resident,score,commentaire,date_note
+1,1,1,5,Super logement!,2024-02-01
+2,2,2,3,Plutôt bien mais un peu bruyant.,2024-02-05

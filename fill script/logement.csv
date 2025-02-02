@@ -1,0 +1,3 @@
+id_logement,emplacement,surface,loyer,nombre_chambres,id_type_logement
+1,Centre-ville,45.0,500,2,1
+2,Banlieue,30.0,350,1,2
