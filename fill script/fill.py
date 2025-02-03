@@ -12,14 +12,14 @@ def connect_db():
         port="5432"
     )
 
-#verify if the file is correctly
+#verify if the file is correctly opened
 def insert_data_from_csv(cursor, table_name, csv_file):
     if not os.path.exists(csv_file):
         print(f"Erreur : Le fichier {csv_file} n'existe pas.")
         return
     
     try:
-        df = pd.read_csv(csv_file)
+        df = pd.read_csv(csv_file, parse_dates=True)
     except Exception as e:
         print(f"Erreur lors de la lecture du fichier {csv_file} : {e}")
         return
