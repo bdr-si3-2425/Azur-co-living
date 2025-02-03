@@ -5,21 +5,21 @@ import os
 #connection AUTH
 def connect_db():
     return psycopg2.connect(
-        dbname="coliving", #change it
+        dbname="bdproject", #change it
         user="postgres",
         password="admin", #change it
         host="localhost",
         port="5432"
     )
 
-#verify if the file is correctly opened
+#verify if the file is correctly
 def insert_data_from_csv(cursor, table_name, csv_file):
     if not os.path.exists(csv_file):
         print(f"Erreur : Le fichier {csv_file} n'existe pas.")
         return
     
     try:
-        df = pd.read_csv(csv_file, parse_dates=True)
+        df = pd.read_csv(csv_file)
     except Exception as e:
         print(f"Erreur lors de la lecture du fichier {csv_file} : {e}")
         return

@@ -1,3 +1,5 @@
 id_type_logement,type_logement,charge_supplementaire
-1,Appartement,50.0
-2,Studio,30.0
+1,Studio,30.0
+2,"Appartement T2",20
+3,"Appartement T3",30
+4,Maison,50

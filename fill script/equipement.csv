@@ -1,3 +1,5 @@
 id_equipement,nom_equipement,etat,id_logement
 1,Climatisation,Bon,1
 2,Chauffage,Moyen,2
+3,Lave-linge,Usé,2
+4,Four,Neuf,3

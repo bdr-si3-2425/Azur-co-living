@@ -1,3 +1,7 @@
 id_chambre,numero_chambre,etat,id_logement
-1,101,Libre,1
-2,102,Occupé,1
+1,A101,Occupée,1
+2,A102,Occupée,1
+1,B101,Libre,2
+2,B102,Occupée,2
+3,C101,Occupée,3
+4,C301,Occupée,3
