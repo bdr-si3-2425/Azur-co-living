@@ -70,7 +70,7 @@ $$ LANGUAGE plpgsql;
 --requete
 SELECT * FROM attribuer_logement(5, '2024-05-01', '2024-05-15');
 
---optimisation de l'occupation pour identifier les logements sous-utilises
+-- optimisation de l'occupation pour identifier les logements sous-utilises
 SELECT 
     l.id_logement, 
     l.type, 
@@ -135,7 +135,7 @@ FROM Reservation
 GROUP BY mois
 ORDER BY mois;
 
---autre tendance par trimestre et par anne
+-- autre tendance par trimestre et par anne
 SELECT 
     DATE_TRUNC('quarter', date_debut) AS trimestre,
     COUNT(*) AS nombre_reservations
@@ -271,7 +271,8 @@ LEFT JOIN Logement_Intervention LI ON L.id_logement = LI.id_logement
 LEFT JOIN Intervention I ON LI.id_intervention = I.id_intervention
 GROUP BY L.id_logement, L.emplacement
 ORDER BY nb_interventions DESC;
---Liste des logements disponibles pour une période spécifique
+
+-- Liste des logements disponibles pour une période spécifique
 SELECT L.id_logement, L.emplacement, L.loyer, T.type_logement
 FROM Logement L
 JOIN Type_logement T ON L.id_type_logement = T.id_type_logement
@@ -287,7 +288,7 @@ AND T.type_logement = 'Studio'
 AND L.emplacement = 'Centre-ville'
 AND L.loyer <= 1000;
 
---Liste des résidents ayant prolongé leur séjour :
+-- Liste des résidents ayant prolongé leur séjour :
 
 SELECT R.nom,
        R.prenom,
@@ -300,7 +301,7 @@ JOIN Reservation Res2 ON R.id_resident = Res2.id_resident
 GROUP BY R.nom, R.prenom
 HAVING MAX(Res2.date_fin) > CURRENT_DATE;
 
---Liste des logements avec le nombre de demandes en attente 
+-- Liste des logements avec le nombre de demandes en attente 
 
 SELECT L.id_logement, 
        L.emplacement,
@@ -311,7 +312,7 @@ WHERE R.date_fin >= CURRENT_DATE
 GROUP BY L.id_logement, L.emplacement
 ORDER BY nb_demandes_attente DESC;
 
---Liste des logements avec le nombre d'interventions et la moyenne des notes :
+-- Liste des logements avec le nombre d'interventions et la moyenne des notes :
 
 SELECT 
     L.id_logement, 
@@ -326,7 +327,7 @@ WHERE I.id_type_intervention IN (2, 3)
 GROUP BY L.id_logement, L.emplacement
 ORDER BY moyenne_notes DESC;
 
---Liste des logements avec le nombre de résidents actifs :
+-- Liste des logements avec le nombre de résidents actifs :
 
 
 SELECT L.id_logement, L.emplacement, COUNT(DISTINCT R.id_resident) AS nb_residents
@@ -337,7 +338,7 @@ WHERE CURRENT_DATE BETWEEN Res.date_debut AND Res.date_fin
 GROUP BY L.id_logement, L.emplacement;
 
 
---trigger pour mettre à jour le statut du logement après une intervention :
+-- trigger pour mettre à jour le statut du logement après une intervention :
 
 DROP TRIGGER IF EXISTS trigger_update_logement_status ON Logement_Intervention;
 DROP FUNCTION IF EXISTS update_logement_status();
@@ -376,7 +377,7 @@ AFTER DELETE ON Reservation
 FOR EACH ROW
 EXECUTE FUNCTION liberer_logement();
 
---Profil démographique des résidents :
+-- Profil démographique des résidents :
 
 SELECT 
     r.nom, 
