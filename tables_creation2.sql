@@ -16,19 +16,14 @@ CREATE TABLE Logement (
         ON DELETE CASCADE
 );
 
-CREATE TABLE Type_Equipement (
-    id_type_equip SERIAL PRIMARY KEY,
-    type_Equipement VARCHAR(50) NOT NULL
-);
+
 
 CREATE TABLE Equipement (
     id_equipement SERIAL PRIMARY KEY,
     nom_equipement VARCHAR(100) NOT NULL,
     etat VARCHAR(20) NOT NULL,
-    id_type_equip int not null,
-    CONSTRAINT fk_type_euip FOREIGN KEY (id_type_equip)
-        REFERENCES Type_Equipement (id_type_equip)
-        ON DELETE CASCADE 
+	id_logement INT NOT NULL,
+	FOREIGN KEY (id_logement) REFERENCES Logement(Id_logement)
 );
 
 
@@ -130,29 +125,12 @@ CREATE TABLE facture (
 );
 
 
-
-CREATE TABLE Logement_Equipement (
-    id_logement INT NOT NULL,
-    id_equipement INT NOT NULL,
-    PRIMARY KEY (id_logement, id_equipement),
-    FOREIGN KEY (id_logement) REFERENCES Logement(Id_logement),
-    FOREIGN KEY (id_equipement) REFERENCES Equipement(Id_equipement)
-);
-
 CREATE TABLE Logement_Intervention (
     id_logement INT NOT NULL,
     id_intervention INT NOT NULL,
     PRIMARY KEY (id_logement, id_intervention),
     FOREIGN KEY (id_logement) REFERENCES Logement(Id_logement),
     FOREIGN KEY (id_intervention) REFERENCES Intervention(Id_intervention)
-);
-
-CREATE TABLE Reservation_Resident (
-    id_reservation INT NOT NULL,
-    id_resident INT NOT NULL,
-    PRIMARY KEY (id_reservation, id_resident),
-    FOREIGN KEY (id_reservation) REFERENCES Reservation(id_reservation),
-    FOREIGN KEY (id_resident) REFERENCES Resident(Id_resident)
 );
 
 
@@ -180,18 +158,19 @@ CREATE TABLE Participation (
 
 CREATE TABLE Note (
     id_note SERIAL PRIMARY KEY,
+    id_logement INT NOT NULL,
+    id_resident INT NOT NULL,
     score INT CHECK (score BETWEEN 1 AND 5),
     commentaire TEXT,
-    date_note DATE NOT NULL DEFAULT CURRENT_DATE
+    date_note DATE NOT NULL DEFAULT CURRENT_DATE,
+    CONSTRAINT fk_note_logement FOREIGN KEY (id_logement)
+        REFERENCES Logement (id_logement)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_note_resident FOREIGN KEY (id_resident)
+        REFERENCES Resident (id_resident)
+        ON DELETE CASCADE
 );
 
-CREATE TABLE Notation (
-    id_logement INT NOT NULL,
-    id_note INT NOT NULL,
-    PRIMARY KEY (id_logement, id_note),
-    CONSTRAINT fk_id_logement FOREIGN KEY (id_logement) REFERENCES Logement(id_logement),
-    CONSTRAINT fk_id_note FOREIGN KEY (id_note) REFERENCES Note(id_note)
-);
 
 
 

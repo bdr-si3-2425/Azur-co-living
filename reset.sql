@@ -2,6 +2,7 @@
 DROP TABLE chambre;
 DROP TABLE resident_conflicts;
 DROP TABLE equipement;
+DROP TABLE Logement_intervention CASCADE;
 DROP TABLE intervention;
 DROP TABLE note;
 DROP TABLE participation;
@@ -13,6 +14,7 @@ DROP TABLE type_logement;
 DROP TABLE conflit CASCADE;
 DROP TABLE profil CASCADE;
 DROP TABLE resident CASCADE;
+DROP TABLE logement_Equipement CASCADE;
 
 
 --DB TABLE RECREATION
@@ -29,18 +31,17 @@ CREATE TABLE Logement (
     loyer FLOAT CHECK (loyer >= 0),
     nombre_chambres INT CHECK (nombre_chambres > 0),
     id_type_logement INT NOT NULL,
-    CONSTRAINT fk__type_logement FOREIGN KEY (id_type_logement)
+    CONSTRAINT fk_type_logement FOREIGN KEY (id_type_logement)
         REFERENCES Type_logement (id_type_logement)
         ON DELETE CASCADE
 );
+
+
+
 CREATE TABLE Equipement (
     id_equipement SERIAL PRIMARY KEY,
     nom_equipement VARCHAR(100) NOT NULL,
-    etat VARCHAR(20) NOT NULL,
-    id_logement INT NOT NULL,
-    CONSTRAINT fk_logement FOREIGN KEY (id_logement)
-        REFERENCES Logement (id_logement)
-        ON DELETE CASCADE
+    etat VARCHAR(20) NOT NULL
 );
 
 
@@ -116,9 +117,55 @@ CREATE TABLE Conflit (
     id_conflit SERIAL PRIMARY KEY,
     description TEXT NOT NULL,
     resolu VARCHAR(10) CHECK (resolu in ('oui', 'En cours','non')),
-    date_conflit DATE NOT NULL,
+    date_conflit DATE NOT NULL
+);
+
+
+
+
+CREATE TABLE Evenement (
+    id_evenement SERIAL PRIMARY KEY,
+    type_evenement VARCHAR(50) NOT NULL,
+    date_event DATE NOT NULL
+);
+
+
+
+CREATE TABLE facture (
+    id_facture SERIAL PRIMARY KEY,          
+    cin_personne VARCHAR(15) NOT NULL, 
+    prix_total NUMERIC(10, 2) NOT NULL,
+    id_reservation int not null,
+    CONSTRAINT fk_id_reservation
+    FOREIGN KEY (id_reservation)
+    REFERENCES reservation(id_reservation)
+    ON DELETE CASCADE
+);
+
+
+
+CREATE TABLE Logement_Equipement (
+    id_logement INT NOT NULL,
+    id_equipement INT NOT NULL,
+    PRIMARY KEY (id_logement, id_equipement),
+    FOREIGN KEY (id_logement) REFERENCES Logement(Id_logement),
+    FOREIGN KEY (id_equipement) REFERENCES Equipement(Id_equipement)
+);
+
+CREATE TABLE Logement_Intervention (
+    id_logement INT NOT NULL,
+    id_intervention INT NOT NULL,
+    PRIMARY KEY (id_logement, id_intervention),
+    FOREIGN KEY (id_logement) REFERENCES Logement(Id_logement),
+    FOREIGN KEY (id_intervention) REFERENCES Intervention(Id_intervention)
+);
+
+CREATE TABLE Reservation_Resident (
+    id_reservation INT NOT NULL,
     id_resident INT NOT NULL,
-	CONSTRAINT fk_id_resident FOREIGN KEY (id_resident) REFERENCES Resident(id_resident) ON DELETE CASCADE
+    PRIMARY KEY (id_reservation, id_resident),
+    FOREIGN KEY (id_reservation) REFERENCES Reservation(id_reservation),
+    FOREIGN KEY (id_resident) REFERENCES Resident(Id_resident)
 );
 
 
@@ -132,23 +179,18 @@ CREATE TABLE Resident_conflicts (
 );
 
 
-CREATE TABLE Evenement (
-    id_evenement SERIAL PRIMARY KEY,
-    type_evenement VARCHAR(50) NOT NULL,
-    date_event DATE NOT NULL
-);
-
 CREATE TABLE Participation (
     id_resident INT NOT NULL,
     id_evenement INT NOT NULL,
     PRIMARY KEY (id_resident, id_evenement),
-    CONSTRAINT fk_participation_resident FOREIGN KEY (id_resident)
+    CONSTRAINT fk_id_resident1 FOREIGN KEY (id_resident)
         REFERENCES Resident (id_resident)
         ON DELETE CASCADE,
-    CONSTRAINT fk_participation_evenement FOREIGN KEY (id_evenement)
+    CONSTRAINT fk_id_evenement FOREIGN KEY (id_evenement)
         REFERENCES Evenement (id_evenement)
         ON DELETE CASCADE
 );
+
 CREATE TABLE Note (
     id_note SERIAL PRIMARY KEY,
     id_logement INT NOT NULL,
@@ -163,4 +205,7 @@ CREATE TABLE Note (
         REFERENCES Resident (id_resident)
         ON DELETE CASCADE
 );
+
+
+
 

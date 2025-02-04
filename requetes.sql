@@ -1,4 +1,5 @@
 -- A. Quels logements sont disponibles pour une période donnée, selon des critères spécifiques (type, emplacement, prix) ?
+--procedure stockée
 CREATE OR REPLACE FUNCTION logements_disponibles(
     p_type_logement VARCHAR, 
     p_emplacement VARCHAR, 
@@ -24,7 +25,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
+--requete sql
+SELECT * FROM logements_disponibles(
+    'Appartement',     -- Type de logement recherché
+    'Paris',           -- Emplacement recherché
+    500,               -- Prix minimum
+    1500,              -- Prix maximum
+    '2025-02-10',      -- Date de début recherchée
+    '2025-02-20'       -- Date de fin recherchée
+);
 
 
 
