@@ -54,8 +54,9 @@ def main():
         "Conflit": "conflit.csv",
         "Resident_conflicts": "resident_conflicts.csv",
         "Evenement": "evenement.csv",
+        "Logement_intervention": "logement_intervention.csv",
         "Participation": "participation.csv",
-        "Note": "note.csv"
+        "Note": "note.csv",
     }
     
     try:
