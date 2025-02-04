@@ -138,7 +138,7 @@ CREATE TABLE Resident_conflicts (
     id_conflit INT NOT NULL,
     id_resident INT NOT NULL,
 	PRIMARY KEY (id_conflit, id_resident),
-    role_resident VARCHAR(10) check ( role_resident in ('initiateur', 'accuse', 'temoin') ),
+    role_resident VARCHAR(10) check ( role_resident in ('initiateur', 'accusateur', 'temoin') ),
     FOREIGN KEY (id_conflit) REFERENCES Conflit(id_conflit) ON DELETE CASCADE,
     FOREIGN KEY (id_resident) REFERENCES Resident(id_resident) ON DELETE CASCADE
 );
