@@ -3,3 +3,9 @@ id_intervention,description,id_type_intervention
 2,"Remplacement d'un fusible",2
 3,"Remplacement de tuyaux",1
 4,"Réparation d'un disjoncteur",2
+5,"Détection de fuite d'eau",1
+6,"Installation d'un éclairage",2
+7,"Nettoyage de canalisation",1
+8,"Réparation d'une prise électrique",2
+9,"Remplacement d'un chauffe-eau",1
+10,"Maintenance du tableau électrique",2

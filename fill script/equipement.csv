@@ -1,5 +1,31 @@
 id_equipement,nom_equipement,etat,id_logement
-1,Climatisation,Bon,1
-2,Chauffage,Moyen,2
-3,Lave-linge,Usé,2
-4,Four,Neuf,3
+1,Table de salon,neuf,1
+2,Canapé,usé,1
+3,Chaise de bureau,neuf,2
+4,Bureau,usé,2
+5,Étagère,neuf,3
+6,Table à manger,usé,3
+7,Lit double,neuf,4
+8,Armoire,usé,4
+9,Table de chevet,neuf,5
+10,Fauteuil,usé,5
+11,Table basse,neuf,6
+12,Chaise de cuisine,usé,6
+13,Lit simple,neuf,7
+14,Étagère murale,usé,7
+15,Table de salle à manger,neuf,8
+16,Canapé-lit,usé,8
+17,Bibliothèque,neuf,9
+18,Table de travail,usé,9
+19,Lit superposé,neuf,10
+20,Armoire de rangement,usé,10
+21,Table de cuisine,neuf,11
+22,Chaise haute,usé,11
+23,Lit queen,neuf,12
+24,Table de nuit,usé,12
+25,Canapé d'angle,neuf,13
+26,Table extensible,usé,13
+27,Lit king,neuf,14
+28,Étagère ouverte,usé,14
+29,Table de jardin,neuf,15
+30,Chaise pliante,usé,15

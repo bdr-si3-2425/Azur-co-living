@@ -3,4 +3,5 @@ id_profil,profession,secteur_activite
 2,Médecin,Santé
 3,Professeur,Éducation
 4,Comptable,Finance
-4,Etudiant,Economie
+5,Etudiant,Éducation
+6,banquier,Finance
