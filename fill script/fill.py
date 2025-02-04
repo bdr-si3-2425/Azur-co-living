@@ -7,7 +7,7 @@ def connect_db():
     return psycopg2.connect(
         dbname="colivingfinal", #change it
         user="postgres",
-        password="admin", #change it
+        password="123456", #change it
         host="localhost",
         port="5432"
     )
