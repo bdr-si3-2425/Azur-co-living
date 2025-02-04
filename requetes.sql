@@ -169,5 +169,92 @@ FROM
     Reservation r
 GROUP BY 
     saison;
+    
+  -- 7. Quels logements ont le meilleur rapport qualité/prix en fonction des avis des résidents ?
+  
+    SELECT 
+    l.id_logement,
+    l.emplacement,
+    l.loyer,
+    COALESCE(ROUND(AVG(n.score),2), 0) AS note_moyenne,
+    CASE 
+        WHEN l.loyer > 0 THEN COALESCE(ROUND(AVG(n.score),4), 0) / l.loyer
+        ELSE NULL
+    END AS rapport_qualite_prix
+FROM Logement l
+LEFT JOIN Note n ON l.id_logement = n.id_logement
+GROUP BY l.id_logement, l.emplacement, l.loyer
+ORDER BY rapport_qualite_prix DESC NULLS LAST;
+
+-- 10. Quel est le taux de satisfaction des résidents en ce qui concerne les logements, les services et les événements 
+
+SELECT 
+    (SELECT ROUND(AVG(n.score), 2) FROM Note n) AS taux_satisfaction_logements,
+    (SELECT ROUND(COUNT(DISTINCT p.id_resident) * 100.0 / (SELECT COUNT(*) FROM Resident))FROM Participation p) AS taux_participation_evenements;
+    
+-- 11. Combien de logements sont disponibles à la location dans un quartier ou une zone géographique donnée ?
+
+SELECT emplacement, COUNT(*) AS logements_disponibles
+FROM Logement
+WHERE id_logement NOT IN (
+    SELECT DISTINCT id_logement
+    FROM Reservation
+    WHERE CURRENT_DATE BETWEEN date_debut AND date_fin
+)
+GROUP BY emplacement;
+
+-- 14. Quels sont les types de logements les plus rentables ?
+
+WITH revenus AS (
+    SELECT 
+        tl.type_logement,
+        SUM((r.date_fin - r.date_debut) * l.loyer) AS revenu_total
+    FROM Reservation r
+    JOIN Logement l ON r.id_logement = l.id_logement
+    JOIN Type_logement tl ON l.id_type_logement = tl.id_type_logement
+    GROUP BY tl.type_logement
+),
+interventions AS (
+    SELECT 
+        tl.type_logement,
+        COUNT(i.id_intervention) AS nombre_interventions
+    FROM logement_intervention i
+    JOIN Logement l ON i.id_logement = l.id_logement
+    JOIN Type_logement tl ON l.id_type_logement = tl.id_type_logement
+    GROUP BY tl.type_logement
+)
+SELECT 
+    r.type_logement,
+    r.revenu_total,
+    COALESCE(i.nombre_interventions, 0) AS nombre_interventions,
+    (r.revenu_total - (i.nombre_interventions * 500)) AS rentabilite_estimee
+FROM revenus r
+LEFT JOIN interventions i ON r.type_logement = i.type_logement
+ORDER BY rentabilite_estimee DESC;
+
+-- 4. Quels résidents ont eu des comportements problématiques ou signalés des conflits récurrents ?
+
+SELECT r.nom, r.prenom, COUNT(c.id_conflit) AS nombre_conflits
+FROM Resident r
+JOIN Resident_conflicts rc ON r.id_resident = rc.id_resident
+JOIN Conflit c ON rc.id_conflit = c.id_conflit
+WHERE c.resolu != 'oui'  
+GROUP BY r.id_resident
+HAVING COUNT(c.id_conflit) > 1  
+ORDER BY nombre_conflits DESC;
+
+-- F. Comment organiser les événements communautaires pour maximiser la participation des résidents dans un logement donné ?
+
+SELECT
+    Round((COUNT(DISTINCT re.id_resident) * 100.0 / (SELECT COUNT(*) FROM Resident)),2) AS taux_participation,
+    e.type_evenement,
+    COUNT(re.id_resident) AS nombre_participants,
+    
+    e.date_event
+FROM Evenement e
+JOIN participation re ON e.id_evenement = re.id_evenement
+WHERE e.date_event BETWEEN '2024-01-01' AND '2025-12-31'  -- Période à ajuster selon vos besoins
+GROUP BY e.type_evenement, e.id_evenement, e.date_event
+ORDER BY nombre_participants DESC;
 
 
