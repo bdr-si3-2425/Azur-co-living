@@ -2,6 +2,7 @@
 DROP TABLE chambre;
 DROP TABLE resident_conflicts;
 DROP TABLE equipement;
+DROP TABLE facture CASCADE;
 DROP TABLE Logement_intervention CASCADE;
 DROP TABLE intervention;
 DROP TABLE note;
@@ -14,7 +15,6 @@ DROP TABLE type_logement;
 DROP TABLE conflit CASCADE;
 DROP TABLE profil CASCADE;
 DROP TABLE resident CASCADE;
-DROP TABLE logement_Equipement CASCADE;
 
 
 --DB TABLE RECREATION
@@ -41,7 +41,9 @@ CREATE TABLE Logement (
 CREATE TABLE Equipement (
     id_equipement SERIAL PRIMARY KEY,
     nom_equipement VARCHAR(100) NOT NULL,
-    etat VARCHAR(20) NOT NULL
+    etat VARCHAR(20) NOT NULL,
+	id_logement INT NOT NULL,
+	FOREIGN KEY (id_logement) REFERENCES Logement(Id_logement)
 );
 
 
@@ -143,29 +145,12 @@ CREATE TABLE facture (
 );
 
 
-
-CREATE TABLE Logement_Equipement (
-    id_logement INT NOT NULL,
-    id_equipement INT NOT NULL,
-    PRIMARY KEY (id_logement, id_equipement),
-    FOREIGN KEY (id_logement) REFERENCES Logement(Id_logement),
-    FOREIGN KEY (id_equipement) REFERENCES Equipement(Id_equipement)
-);
-
 CREATE TABLE Logement_Intervention (
     id_logement INT NOT NULL,
     id_intervention INT NOT NULL,
     PRIMARY KEY (id_logement, id_intervention),
     FOREIGN KEY (id_logement) REFERENCES Logement(Id_logement),
     FOREIGN KEY (id_intervention) REFERENCES Intervention(Id_intervention)
-);
-
-CREATE TABLE Reservation_Resident (
-    id_reservation INT NOT NULL,
-    id_resident INT NOT NULL,
-    PRIMARY KEY (id_reservation, id_resident),
-    FOREIGN KEY (id_reservation) REFERENCES Reservation(id_reservation),
-    FOREIGN KEY (id_resident) REFERENCES Resident(Id_resident)
 );
 
 
