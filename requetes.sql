@@ -32,90 +32,149 @@ select * from facture
 
 
 
--- 1 Quels logements sont disponibles pour une période donnée, selon des critères spécifiques (type, emplacement, prix) ?
+-- Quels logements sont disponibles pour une période donnée, selon des critères spécifiques (type, emplacement, prix) ?
 -- Pocedure stockée
-CREATE OR REPLACE PROCEDURE logements_disponibles(
-    IN p_date_debut DATE,
-    IN p_date_fin DATE,
-    IN p_type_logement VARCHAR(50),
-    IN p_emplacement VARCHAR(100),
-    IN p_loyer_max FLOAT
+CREATE OR REPLACE FUNCTION logements_disponibles(
+    p_date_debut DATE,
+    p_date_fin DATE,
+    p_type_logement VARCHAR(50),
+    p_emplacement VARCHAR(100),
+    p_loyer_min FLOAT,
+    p_loyer_max FLOAT
 )
-LANGUAGE plpgsql
-AS $$
+RETURNS TABLE (
+    id_logement INT,
+    emplacement VARCHAR(100),
+    surface FLOAT,
+    loyer FLOAT,
+    nombre_chambres INT,
+    type_logement VARCHAR(50)
+) AS
+$$
 BEGIN
-    -- Création d'une table temporaire pour stocker les résultats
-    CREATE TEMP TABLE temp_logements_disponibles AS 
-    SELECT l.id_logement, l.emplacement, l.loyer, t.type_logement
+    RETURN QUERY
+    SELECT 
+        l.id_logement,
+        l.emplacement,
+        l.surface,
+        l.loyer,
+        l.nombre_chambres,
+        t.type_logement
     FROM Logement l
     JOIN Type_logement t ON l.id_type_logement = t.id_type_logement
-    WHERE l.etat = 'Disponible'
-    AND (p_type_logement IS NULL OR t.type_logement ILIKE p_type_logement)
-    AND (p_emplacement IS NULL OR l.emplacement ILIKE p_emplacement)
-    AND (p_loyer_max IS NULL OR l.loyer <= p_loyer_max)
-    AND l.id_logement NOT IN (
-        SELECT id_logement FROM Reservation 
-        WHERE (date_debut, date_fin) OVERLAPS (p_date_debut, p_date_fin)
-    );
-END;
-$$;
---exemple d'utilisation
-CALL logements_disponibles('2025-03-01', '2025-03-15', 'Appartement', 'Paris', 1500);
-SELECT * FROM temp_logements_disponibles;
-
-
-
--- 2-Comment gérer les réservations et attribuer les logements aux nouveaux résidents en optimisant l’occupation ?
--- Procedure stockee
-CREATE OR REPLACE PROCEDURE attribuer_logement(
-    IN p_id_resident INT,
-    IN p_date_debut DATE,
-    IN p_date_fin DATE,
-    OUT v_id_logement INT
-)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    -- Sélection du logement disponible le moins cher
-    SELECT id_logement INTO v_id_logement
-    FROM Logement l
-    WHERE l.etat = 'Disponible'
-    AND l.id_logement NOT IN (
-        SELECT id_logement FROM Reservation 
-        WHERE (date_debut, date_fin) OVERLAPS (p_date_debut, p_date_fin)
+    WHERE l.id_logement NOT IN (
+        -- Exclure les logements qui sont réservés dans cette période
+        SELECT r.id_logement 
+        FROM Reservation r
+        WHERE (p_date_debut BETWEEN r.date_debut AND r.date_fin)
+           OR (p_date_fin BETWEEN r.date_debut AND r.date_fin)
+           OR (r.date_debut BETWEEN p_date_debut AND p_date_fin)
+           OR (r.date_fin BETWEEN p_date_debut AND p_date_fin)
     )
-    ORDER BY l.loyer ASC 
-    LIMIT 1;
-
-    -- Vérification de la disponibilité d'un logement
-    IF v_id_logement IS NULL THEN
-        RAISE EXCEPTION 'Aucun logement disponible pour cette période';
-    END IF;
-
-    -- Création de la réservation
-    INSERT INTO Reservation (date_debut, date_fin, id_logement, id_resident)
-    VALUES (p_date_debut, p_date_fin, v_id_logement, p_id_resident);
-
-    -- Mise à jour de l'état du logement
-    UPDATE Logement 
-    SET etat = 'Occupé' 
-    WHERE id_logement = v_id_logement;
-    
-    -- Affichage du logement attribué
-    RAISE NOTICE 'Logement % attribué au résident %', v_id_logement, p_id_resident;
+    AND l.etat = 'Disponible' -- Filtrer uniquement les logements disponibles
+    AND t.type_logement = p_type_logement
+    AND l.emplacement = p_emplacement
+    AND l.loyer BETWEEN p_loyer_min AND p_loyer_max;
 END;
-$$;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM logements_disponibles(
+    '2025-03-01',   -- Date de début
+    '2025-03-15',   -- Date de fin
+    'Appartement',  -- Type de logement
+    'Paris',        -- Emplacement
+    500,            -- Loyer minimum
+    1500           -- Loyer maximum
+);
 
 
---exemple d'utilisation
-CALL attribuer_logement(5, '2025-03-01', '2025-03-15', NULL);
+
+
+
+
+-- Comment gérer les réservations et attribuer les logements aux nouveaux résidents en optimisant l’occupation ?
+-- Procedure stockee
+CREATE OR REPLACE FUNCTION attribuer_logement_optimal(
+    p_id_resident INT,
+    p_date_debut DATE,
+    p_date_fin DATE,
+    p_type_logement VARCHAR(50),
+    p_emplacement VARCHAR(100),
+    p_loyer_max FLOAT
+)
+RETURNS TABLE (
+    id_logement INT,
+    emplacement VARCHAR(100),
+    surface FLOAT,
+    loyer FLOAT,
+    nombre_chambres INT,
+    type_logement VARCHAR(50),
+    status VARCHAR(50)
+) AS
+$$
+DECLARE
+    logement_disponible RECORD;
+BEGIN
+    -- Trouver le logement optimal disponible
+    FOR logement_disponible IN
+        SELECT 
+            l.id_logement,
+            l.emplacement,
+            l.surface,
+            l.loyer,
+            l.nombre_chambres,
+            t.type_logement,
+            COUNT(r.id_reservation) AS nombre_reservations -- Prioriser ceux les moins réservés
+        FROM Logement l
+        JOIN Type_logement t ON l.id_type_logement = t.id_type_logement
+        LEFT JOIN Reservation r ON l.id_logement = r.id_logement
+        WHERE l.id_logement NOT IN (
+            -- Exclure les logements déjà réservés à ces dates
+            SELECT res.id_logement 
+            FROM Reservation res
+            WHERE (p_date_debut BETWEEN res.date_debut AND res.date_fin)
+               OR (p_date_fin BETWEEN res.date_debut AND res.date_fin)
+               OR (res.date_debut BETWEEN p_date_debut AND p_date_fin)
+               OR (res.date_fin BETWEEN p_date_debut AND p_date_fin)
+        )
+        AND l.etat = 'Disponible'
+        AND t.type_logement = p_type_logement
+        AND l.emplacement = p_emplacement
+        AND l.loyer <= p_loyer_max
+        GROUP BY l.id_logement, l.emplacement, l.surface, l.loyer, l.nombre_chambres, t.type_logement
+        ORDER BY nombre_reservations ASC, l.loyer ASC -- Prioriser les logements les moins réservés et les moins chers
+        LIMIT 1
+    LOOP
+        -- Insérer la réservation si un logement est trouvé
+        INSERT INTO Reservation (date_debut, date_fin, id_logement, id_resident)
+        VALUES (p_date_debut, p_date_fin, logement_disponible.id_logement, p_id_resident);
+        
+        RETURN QUERY 
+        SELECT logement_disponible.*, 'Réservation Confirmée' AS status;
+        
+        RETURN;
+    END LOOP;
+    
+    -- Si aucun logement disponible, retourner un message d'échec
+    RETURN QUERY 
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, 'Aucun logement disponible' AS status;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM attribuer_logement_optimal(
+    10,              -- ID du résident
+    '2025-04-01',    -- Date de début
+    '2025-04-30',    -- Date de fin
+    'Appartement',   -- Type de logement
+    'Paris',         -- Emplacement
+    1200            -- Loyer maximum
+);
 
 
 
 
 
-
--- 3- Quel est le taux d'occupation actuel des logements ?
+-- Quel est le taux d'occupation actuel des logements ?
 SELECT 
     (COUNT(DISTINCT r.id_logement)::FLOAT / COUNT(l.id_logement)) * 100 AS taux_occupation
 FROM 
@@ -127,7 +186,7 @@ LEFT JOIN
 
 
 
--- 4- Quel est le temps moyen de séjour d'un résident dans un logement ?
+-- Quel est le temps moyen de séjour d'un résident dans un logement ?
 SELECT 
     AVG(DATE_PART('day', r.date_fin - r.date_debut)) AS temps_moyen_sejour
 FROM 
@@ -135,7 +194,7 @@ FROM
 
 
 
--- 5- Quel est le profil des résidents qui prolongent leur séjour par rapport à ceux qui ne prolongent pas ?
+-- Quel est le profil des résidents qui prolongent leur séjour par rapport à ceux qui ne prolongent pas ?
 
 SELECT 
     p.profession, 
@@ -152,7 +211,7 @@ ORDER BY nb_prolongations DESC;
 
 
 
--- 6- Quelles sont les tendances de réservation sur différentes périodes (mois, trimestre, année) ?
+-- Quelles sont les tendances de réservation sur différentes périodes (mois, trimestre, année) ?
 SELECT 
     DATE_TRUNC('month', date_debut) AS mois,
     COUNT(*) AS nombre_reservations
@@ -179,14 +238,14 @@ ORDER BY annee;
 
 
 
--- 7- Combien de résidents sont inscrits dans des activités régulières (cours, événements, etc.) ?
+-- Combien de résidents sont inscrits dans des activités régulières (cours, événements, etc.) ?
 SELECT COUNT(DISTINCT id_resident) AS nb_residents_actifs 
 FROM Participation;
 
 
 
 
--- 8- Comment les saisons affectent-elles la demande des logements ?
+-- Comment les saisons affectent-elles la demande des logements ?
 SELECT 
     CASE
         WHEN EXTRACT(MONTH FROM r.date_debut) IN (12, 1, 2) THEN 'Hiver'
@@ -205,7 +264,7 @@ GROUP BY
 ----ASSIA---------
 --------------------
     
-  -- 9 Quels logements ont le meilleur rapport qualité/prix en fonction des avis des résidents ?
+  -- 7. Quels logements ont le meilleur rapport qualité/prix en fonction des avis des résidents ?
   
     SELECT 
     l.id_logement,
@@ -238,7 +297,7 @@ WHERE id_logement NOT IN (
 )
 GROUP BY emplacement;
 
--- 12. Quels sont les types de logements les plus rentables ?
+-- 14. Quels sont les types de logements les plus rentables ?
 
 WITH revenus AS (
     SELECT 
@@ -267,7 +326,7 @@ FROM revenus r
 LEFT JOIN interventions i ON r.type_logement = i.type_logement
 ORDER BY rentabilite_estimee DESC;
 
--- 13 Quels résidents ont eu des comportements problématiques ou signalés des conflits récurrents ?
+-- 4. Quels résidents ont eu des comportements problématiques ou signalés des conflits récurrents ?
 
 SELECT r.nom, r.prenom, COUNT(c.id_conflit) AS nombre_conflits
 FROM Resident r
@@ -278,7 +337,7 @@ GROUP BY r.id_resident
 HAVING COUNT(c.id_conflit) > 1  
 ORDER BY nombre_conflits DESC;
 
--- 14. Comment organiser les événements communautaires pour maximiser la participation des résidents dans un logement donné ?
+-- F. Comment organiser les événements communautaires pour maximiser la participation des résidents dans un logement donné ?
 
 SELECT
     Round((COUNT(DISTINCT re.id_resident) * 100.0 / (SELECT COUNT(*) FROM Resident)),2) AS taux_participation,
@@ -301,7 +360,7 @@ LEFT JOIN Intervention I ON LI.id_intervention = I.id_intervention
 GROUP BY L.id_logement, L.emplacement
 ORDER BY nb_interventions DESC;
 
--- 15 Liste des logements disponibles pour une période spécifique
+-- Liste des logements disponibles pour une période spécifique
 SELECT L.id_logement, L.emplacement, L.loyer, T.type_logement
 FROM Logement L
 JOIN Type_logement T ON L.id_type_logement = T.id_type_logement
@@ -317,7 +376,7 @@ AND T.type_logement = 'Studio'
 AND L.emplacement = 'Centre-ville'
 AND L.loyer <= 1000;
 
--- 16 Liste des résidents ayant prolongé leur séjour :
+-- Liste des résidents ayant prolongé leur séjour :
 
 SELECT R.nom,
        R.prenom,
@@ -330,7 +389,7 @@ JOIN Reservation Res2 ON R.id_resident = Res2.id_resident
 GROUP BY R.nom, R.prenom
 HAVING MAX(Res2.date_fin) > CURRENT_DATE;
 
--- 17 Liste des logements avec le nombre de demandes en attente 
+-- Liste des logements avec le nombre de demandes en attente 
 
 SELECT L.id_logement, 
        L.emplacement,
@@ -341,7 +400,7 @@ WHERE R.date_fin >= CURRENT_DATE
 GROUP BY L.id_logement, L.emplacement
 ORDER BY nb_demandes_attente DESC;
 
--- 18 Liste des logements avec le nombre d'interventions et la moyenne des notes :
+-- Liste des logements avec le nombre d'interventions et la moyenne des notes :
 
 SELECT 
     L.id_logement, 
@@ -356,7 +415,7 @@ WHERE I.id_type_intervention IN (2, 3)
 GROUP BY L.id_logement, L.emplacement
 ORDER BY moyenne_notes DESC;
 
--- 19 Liste des logements avec le nombre de résidents actifs :
+-- Liste des logements avec le nombre de résidents actifs :
 
 
 SELECT L.id_logement, L.emplacement, COUNT(DISTINCT R.id_resident) AS nb_residents
@@ -367,7 +426,7 @@ WHERE CURRENT_DATE BETWEEN Res.date_debut AND Res.date_fin
 GROUP BY L.id_logement, L.emplacement;
 
 
--- 20 trigger pour mettre à jour le statut du logement après une intervention :
+-- trigger pour mettre à jour le statut du logement après une intervention :
 
 DROP TRIGGER IF EXISTS trigger_update_logement_status ON Logement_Intervention;
 DROP FUNCTION IF EXISTS update_logement_status();
@@ -386,7 +445,7 @@ CREATE TRIGGER trigger_update_logement_status
 AFTER INSERT ON Logement_Intervention
 FOR EACH ROW
 EXECUTE FUNCTION update_logement_status();
--- 21 Création de fonction et trigger pour libérer le logement après une annulation de réservation :
+--Création de fonction et trigger pour libérer le logement après une annulation de réservation :
 
 DROP TRIGGER IF EXISTS trigger_liberer_logement ON Reservation;
 DROP FUNCTION IF EXISTS liberer_logement();
@@ -406,7 +465,7 @@ AFTER DELETE ON Reservation
 FOR EACH ROW
 EXECUTE FUNCTION liberer_logement();
 
--- 22 Profil démographique des résidents :
+-- Profil démographique des résidents :
 
 SELECT 
     r.nom, 
@@ -423,154 +482,3 @@ JOIN
 
 
 
-
-
------------------------
-------RAYEN------------
------------------------
-
---23 selection de personnes partageant un meme logement avec une reservation en cours
-SELECT 
-    re.id_logement,
-    r.nom,
-    r.prenom,
-    e.type_evenement as evenement,
-    con.description as conflit
-FROM 
-    Resident AS r
-JOIN 
-    Reservation AS re ON r.id_resident = re.id_resident
-LEFT JOIN 
-    resident_conflicts AS rc ON r.id_resident = rc.id_resident
-LEFT JOIN 
-    Conflit AS con ON rc.id_conflit = con.id_conflit
-LEFT JOIN 
-    Participation AS p ON p.id_resident = r.id_resident
-LEFT JOIN 
-    evenement AS e ON e.id_evenement = p.id_evenement
-WHERE 
-    CURRENT_DATE BETWEEN re.date_debut AND re.date_fin -- Réservation active
-    AND re.id_logement IN (
-        SELECT re2.id_logement
-        FROM Reservation AS re2
-        WHERE CURRENT_DATE BETWEEN re2.date_debut AND re2.date_fin
-        GROUP BY re2.id_logement
-        HAVING COUNT(DISTINCT re2.id_resident) > 1 -- verification qu'il y a plus de 2 personnes dans un meme logement
-    );
-
-
---24 Selection de tout les résident qui ont deja partagé ou qui partage encore un logement
-SELECT 
-    re.id_logement,
-    STRING_AGG(r.nom || ' ' || r.prenom, ', ') AS residents,
-    COUNT(*) AS nombre_residents
-FROM 
-    Resident AS r
-JOIN 
-    Reservation AS re ON r.id_resident = re.id_resident
-WHERE 
-    EXISTS (
-        SELECT 1
-        FROM Reservation AS re2
-        WHERE re2.id_logement = re.id_logement
-          AND re2.id_resident != r.id_resident
-          AND (
-              (re.date_debut <= re2.date_fin AND re.date_fin >= re2.date_debut)
-              OR 
-              (re2.date_debut <= re.date_fin AND re2.date_fin >= re.date_debut) 
-          )
-    )
-GROUP BY 
-    re.id_logement
-HAVING 
-    COUNT(*) > 1;
-
---
-WITH logement_reservations AS (
-    SELECT 
-        re.id_logement,
-        COUNT(*) AS nombre_reservations,
-        AVG(n.score) AS note_generale
-    FROM 
-        Reservation AS re
-    LEFT JOIN 
-        note AS n ON re.id_logement = n.id_logement
-    GROUP BY 
-        re.id_logement
-)
-
--- 25 selection des logements les plus demandées
-WITH logement_reservations AS (
-    SELECT 
-        re.id_logement,
-        COUNT(*) AS nombre_reservations,
-        AVG(COALESCE(n.score, 0)) AS note_generale -- Remplace NULL par 0
-    FROM 
-        Reservation AS re
-    LEFT JOIN 
-        note AS n ON re.id_logement = n.id_logement
-    GROUP BY  
-        re.id_logement
-)
-SELECT 
-    lr.id_logement,
-    lr.nombre_reservations,
-    lr.note_generale,
-    l.emplacement,
-    l.surface,
-    l.loyer,
-    l.nombre_chambres
-FROM 
-    logement_reservations AS lr
-JOIN 
-    logement AS l ON lr.id_logement = l.id_logement
-ORDER BY 
-    lr.nombre_reservations DESC, 
-    lr.note_generale DESC
-LIMIT 3;
-
--- 26 Retourne les 3 mois avec le plus de réservations
-WITH reservations_par_mois AS (
-    SELECT 
-        TO_CHAR(date_debut, 'MM') AS mois,
-        COUNT(*) AS nombre_reservations
-    FROM 
-        Reservation
-    GROUP BY 
-        TO_CHAR(date_debut, 'MM')
-)
-SELECT 
-    mois,
-    nombre_reservations
-FROM 
-    reservations_par_mois
-ORDER BY 
-    nombre_reservations DESC
-LIMIT 3;
-
--- 27 changement de prix d'un logement donné
-BEGIN;
-
-UPDATE logement 
-SET loyer = 700 
-WHERE id_logement = 10;
-UPDATE facture 
-SET prix_total = 700 * (r.date_fin - r.date_debut)
-FROM Reservation r
-WHERE facture.id_reservation = r.id_reservation
-AND r.id_logement = 10;
-
-COMMIT;
-
--- 28 .création automatique des factures
-INSERT INTO facture (cin_personne, prix_total, id_reservation)
-SELECT 
-    r.cin AS cin_personne,
-    (lg.loyer * (re.date_fin - re.date_debut)) AS prix_total,
-    re.id_reservation
-FROM 
-    Reservation re
-JOIN 
-    Resident r ON re.id_resident = r.id_resident
-JOIN 
-    logement lg ON re.id_logement = lg.id_logement;

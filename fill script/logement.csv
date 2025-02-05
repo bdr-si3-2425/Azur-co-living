@@ -16,3 +16,8 @@ id_logement,emplacement,surface,loyer,nombre_chambres,id_type_logement
 15,"Rue Nationale, Lyon",50.0,850,2,3
 16,"Antibes",30.0,400,2,3
 17, "Centre-ville",50.0, 700, 2, 1
+18,Centre-ville,9,1200,1,1
+19,Banlieue,12,1000,2,1
+20,Centre-ville,23,1300,1,1
+21,Centre-ville,34,1600,1,1
+22,Banlieue,18,900,3,1
