@@ -35,3 +35,5 @@ id_chambre,numero_chambre,etat,id_logement
 34,4,occupé,14
 35,1,libre,15
 36,2,occupé,15
+37,1,occupé,16
+38,2,occupé,16

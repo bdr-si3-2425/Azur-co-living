@@ -9,3 +9,5 @@ id_resident,nom,prenom,date_naissance,cin,date_entree,date_sortie,id_profil
 8,Bernard,Julie,1993-06-08,67890543,2024-02-20,2024-05-05,5
 9,Richard,Lucas,1980-08-15,90817263,2024-03-10,2024-04-10,3
 10,Petit,Elise,2001-04-05,45362718,2024-06-25,2024-09-10,4
+11,Mahrez,Mounib,1978-06-30,72701384,2025-01-09,2025-02-28,2
+12,House,Angel,2005-07-09,55102987,2025-01-10,2025-02-28,5

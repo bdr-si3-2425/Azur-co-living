@@ -29,6 +29,7 @@ CREATE TABLE Logement (
     emplacement VARCHAR(100) NOT NULL,
     surface FLOAT CHECK (surface > 0),
     loyer FLOAT CHECK (loyer >= 0),
+    etat VARCHAR(20) DEFAULT 'Disponible',
     nombre_chambres INT CHECK (nombre_chambres > 0),
     id_type_logement INT NOT NULL,
     CONSTRAINT fk_type_logement FOREIGN KEY (id_type_logement)
