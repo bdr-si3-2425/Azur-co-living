@@ -15,6 +15,7 @@ CREATE TABLE Logement (
         REFERENCES Type_logement (id_type_logement)
         ON DELETE CASCADE
 );
+ALTER TABLE Logement ADD COLUMN etat VARCHAR(20) DEFAULT 'Disponible';
 
 
 
