@@ -291,7 +291,11 @@ JOIN participation re ON e.id_evenement = re.id_evenement
 WHERE e.date_event BETWEEN '2024-01-01' AND '2025-12-31'  -- Période à ajuster selon vos besoins
 GROUP BY e.type_evenement, e.id_evenement, e.date_event
 ORDER BY nombre_participants DESC;
+-------------------
+----Arij---------
+--------------------
 
+-- 15 Liste des logements avec le nombre d'interventions
 SELECT L.id_logement,
        L.emplacement,
        COUNT(I.id_intervention) AS nb_interventions
@@ -301,7 +305,7 @@ LEFT JOIN Intervention I ON LI.id_intervention = I.id_intervention
 GROUP BY L.id_logement, L.emplacement
 ORDER BY nb_interventions DESC;
 
--- 15 Liste des logements disponibles pour une période spécifique
+-- 16 Liste des logements disponibles pour une période spécifique
 SELECT L.id_logement, L.emplacement, L.loyer, T.type_logement
 FROM Logement L
 JOIN Type_logement T ON L.id_type_logement = T.id_type_logement
@@ -317,7 +321,7 @@ AND T.type_logement = 'Studio'
 AND L.emplacement = 'Centre-ville'
 AND L.loyer <= 1000;
 
--- 16 Liste des résidents ayant prolongé leur séjour :
+-- 17 Liste des résidents ayant prolongé leur séjour :
 
 SELECT R.nom,
        R.prenom,
@@ -330,7 +334,7 @@ JOIN Reservation Res2 ON R.id_resident = Res2.id_resident
 GROUP BY R.nom, R.prenom
 HAVING MAX(Res2.date_fin) > CURRENT_DATE;
 
--- 17 Liste des logements avec le nombre de demandes en attente 
+-- 18 Liste des logements avec le nombre de demandes en attente 
 
 SELECT L.id_logement, 
        L.emplacement,
@@ -341,7 +345,7 @@ WHERE R.date_fin >= CURRENT_DATE
 GROUP BY L.id_logement, L.emplacement
 ORDER BY nb_demandes_attente DESC;
 
--- 18 Liste des logements avec le nombre d'interventions et la moyenne des notes :
+-- 19 Liste des logements avec le nombre d'interventions et la moyenne des notes :
 
 SELECT 
     L.id_logement, 
@@ -356,7 +360,7 @@ WHERE I.id_type_intervention IN (2, 3)
 GROUP BY L.id_logement, L.emplacement
 ORDER BY moyenne_notes DESC;
 
--- 19 Liste des logements avec le nombre de résidents actifs :
+-- 20 Liste des logements avec le nombre de résidents actifs :
 
 
 SELECT L.id_logement, L.emplacement, COUNT(DISTINCT R.id_resident) AS nb_residents
@@ -367,7 +371,7 @@ WHERE CURRENT_DATE BETWEEN Res.date_debut AND Res.date_fin
 GROUP BY L.id_logement, L.emplacement;
 
 
--- 20 trigger pour mettre à jour le statut du logement après une intervention :
+-- 21 trigger pour mettre à jour le statut du logement après une intervention :
 
 DROP TRIGGER IF EXISTS trigger_update_logement_status ON Logement_Intervention;
 DROP FUNCTION IF EXISTS update_logement_status();
@@ -386,7 +390,7 @@ CREATE TRIGGER trigger_update_logement_status
 AFTER INSERT ON Logement_Intervention
 FOR EACH ROW
 EXECUTE FUNCTION update_logement_status();
--- 21 Création de fonction et trigger pour libérer le logement après une annulation de réservation :
+-- 22 Création de fonction et trigger pour libérer le logement après une annulation de réservation :
 
 DROP TRIGGER IF EXISTS trigger_liberer_logement ON Reservation;
 DROP FUNCTION IF EXISTS liberer_logement();
@@ -406,7 +410,7 @@ AFTER DELETE ON Reservation
 FOR EACH ROW
 EXECUTE FUNCTION liberer_logement();
 
--- 22 Profil démographique des résidents :
+-- 23 Profil démographique des résidents :
 
 SELECT 
     r.nom, 
@@ -429,7 +433,7 @@ JOIN
 ------RAYEN------------
 -----------------------
 
---23 selection de personnes partageant un meme logement avec une reservation en cours
+--24 selection de personnes partageant un meme logement avec une reservation en cours
 SELECT 
     re.id_logement,
     r.nom,
@@ -459,7 +463,7 @@ WHERE
     );
 
 
---24 Selection de tout les résident qui ont deja partagé ou qui partage encore un logement
+--25 Selection de tout les résident qui ont deja partagé ou qui partage encore un logement
 SELECT 
     re.id_logement,
     STRING_AGG(r.nom || ' ' || r.prenom, ', ') AS residents,
@@ -499,7 +503,7 @@ WITH logement_reservations AS (
         re.id_logement
 )
 
--- 25 selection des logements les plus demandées
+-- 26 selection des logements les plus demandées
 WITH logement_reservations AS (
     SELECT 
         re.id_logement,
@@ -529,7 +533,7 @@ ORDER BY
     lr.note_generale DESC
 LIMIT 3;
 
--- 26 Retourne les 3 mois avec le plus de réservations
+-- 27 Retourne les 3 mois avec le plus de réservations
 WITH reservations_par_mois AS (
     SELECT 
         TO_CHAR(date_debut, 'MM') AS mois,
@@ -548,7 +552,7 @@ ORDER BY
     nombre_reservations DESC
 LIMIT 3;
 
--- 27 changement de prix d'un logement donné
+-- 28 changement de prix d'un logement donné
 BEGIN;
 
 UPDATE logement 
@@ -562,7 +566,7 @@ AND r.id_logement = 10;
 
 COMMIT;
 
--- 28 .création automatique des factures
+-- 29 .création automatique des factures
 INSERT INTO facture (cin_personne, prix_total, id_reservation)
 SELECT 
     r.cin AS cin_personne,
@@ -574,3 +578,15 @@ JOIN
     Resident r ON re.id_resident = r.id_resident
 JOIN 
     logement lg ON re.id_logement = lg.id_logement;
+
+
+
+
+
+
+
+
+
+
+
+
