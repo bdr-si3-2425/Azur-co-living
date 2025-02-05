@@ -1,94 +1,107 @@
+-------------------
+-------RAJAA-------
+-------------------
+
+--ceci permet d'inserer automatiquement une ligne dans la table facture lorqu'une reservation est inserée
+CREATE OR REPLACE FUNCTION insert_facture_on_reservation()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO facture (cin_personne, prix_total, id_reservation)
+    VALUES (
+        (SELECT cin FROM Resident WHERE id_resident = NEW.id_resident),
+        500.00,  -- Prix par défaut (tu peux le calculer autrement)
+        NEW.id_reservation
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+--trigger qui sera declenche a chaque insertion dans reservation
+CREATE TRIGGER trigger_insert_facture
+AFTER INSERT ON Reservation
+FOR EACH ROW
+EXECUTE FUNCTION insert_facture_on_reservation();
+
+--insertion d'une reservation
+INSERT INTO Reservation (id_reservation,date_debut, date_fin, id_logement, id_resident)
+VALUES (39,'2025-02-05', '2025-03-05', 1, 1);
+
+--verification de la table facture
+select * from facture
+
+
+
+
 -- Quels logements sont disponibles pour une période donnée, selon des critères spécifiques (type, emplacement, prix) ?
 -- Pocedure stockée
 CREATE OR REPLACE FUNCTION logements_disponibles(
-    p_date_debut DATE, 
-    p_date_fin DATE, 
-    p_type VARCHAR DEFAULT NULL, 
-    p_emplacement VARCHAR DEFAULT NULL, 
-    p_prix_max DECIMAL DEFAULT NULL
+    p_date_debut DATE,
+    p_date_fin DATE,
+    p_type_logement VARCHAR(50),
+    p_emplacement VARCHAR(100),
+    p_loyer_max FLOAT
 ) 
-RETURNS TABLE(id_logement INT, type VARCHAR, emplacement VARCHAR, prix DECIMAL) AS $$  
-BEGIN  
-    RETURN QUERY  
-    SELECT l.id_logement, l.type, l.emplacement, l.prix
-    FROM Logement l  
-    WHERE NOT EXISTS (
-        SELECT 1 FROM Reservation r  
-        WHERE r.id_logement = l.id_logement  
-        AND r.date_debut <= p_date_fin  
-        AND r.date_fin >= p_date_debut  
-    )
-    AND (p_type IS NULL OR l.type = p_type)  
-    AND (p_emplacement IS NULL OR l.emplacement = p_emplacement)  
-    AND (p_prix_max IS NULL OR l.prix <= p_prix_max);  
-END;  
+RETURNS TABLE(id_logement INT, emplacement VARCHAR, loyer FLOAT, type_logement VARCHAR) AS $$
+BEGIN
+    RETURN QUERY 
+    SELECT l.id_logement, l.emplacement, l.loyer, t.type_logement
+    FROM Logement l
+    JOIN Type_logement t ON l.id_type_logement = t.id_type_logement
+    WHERE l.etat = 'Disponible'
+    AND t.type_logement ILIKE COALESCE(p_type_logement, t.type_logement)
+    AND l.emplacement ILIKE COALESCE(p_emplacement, l.emplacement)
+    AND l.loyer <= COALESCE(p_loyer_max, l.loyer)
+    AND l.id_logement NOT IN (
+        SELECT id_logement FROM Reservation 
+        WHERE (date_debut, date_fin) OVERLAPS (p_date_debut, p_date_fin)
+    );
+END; 
 $$ LANGUAGE plpgsql;
 
 
---requete sql
-SELECT * FROM logements_disponibles('2024-05-01', '2024-05-15', 'Appartement', 'Centre-ville', 1000);
-
-
-
-
-
--- B. Comment gérer les réservations et attribuer les logements aux nouveaux résidents en optimisant l’occupation ?
---procedure stockee
+-- Comment gérer les réservations et attribuer les logements aux nouveaux résidents en optimisant l’occupation ?
+-- Procedure stockee
 CREATE OR REPLACE FUNCTION attribuer_logement(
-    p_id_resident INT, 
-    p_date_debut DATE, 
+    p_id_resident INT,
+    p_date_debut DATE,
     p_date_fin DATE
-) 
-RETURNS TABLE(id_reservation INT, id_logement INT, message TEXT) AS $$  
-DECLARE  
-    v_id_logement INT;  
-BEGIN  
-    -- Rechercher un logement libre
-    SELECT l.id_logement INTO v_id_logement  
-    FROM Logement l  
-    WHERE NOT EXISTS (
-        SELECT 1 FROM Reservation r  
-        WHERE r.id_logement = l.id_logement  
-        AND r.date_debut <= p_date_fin  
-        AND r.date_fin >= p_date_debut  
-    )  
-    ORDER BY l.prix ASC  
-    LIMIT 1;  
+) RETURNS INT AS $$
+DECLARE
+    v_id_logement INT;
+BEGIN
+    -- Sélection du logement le moins cher disponible pour la période
+    SELECT id_logement INTO v_id_logement 
+    FROM Logement l
+    WHERE l.etat = 'Disponible'
+    AND l.id_logement NOT IN (
+        SELECT id_logement FROM Reservation 
+        WHERE (date_debut, date_fin) OVERLAPS (p_date_debut, p_date_fin)
+    )
+    ORDER BY l.loyer ASC 
+    LIMIT 1;
 
     -- Vérifier si un logement a été trouvé
-    IF v_id_logement IS NULL THEN  
-        RETURN QUERY SELECT NULL, NULL, 'Aucun logement disponible pour ces dates.';
-    ELSE  
-        -- Insérer la réservation
-        INSERT INTO Reservation (id_resident, id_logement, date_debut, date_fin)  
-        VALUES (p_id_resident, v_id_logement, p_date_debut, p_date_fin)  
-        RETURNING id_reservation, id_logement, 'Réservation effectuée avec succès.';  
-    END IF;  
-END;  
+    IF v_id_logement IS NULL THEN
+        RAISE EXCEPTION 'Aucun logement disponible pour cette période';
+    END IF;
+
+    -- Insérer la réservation
+    INSERT INTO Reservation (date_debut, date_fin, id_logement, id_resident)
+    VALUES (p_date_debut, p_date_fin, v_id_logement, p_id_resident);
+
+    -- Mettre à jour l'état du logement
+    UPDATE Logement SET etat = 'Occupé' WHERE id_logement = v_id_logement;
+
+    RETURN v_id_logement;
+END;
 $$ LANGUAGE plpgsql;
 
---requete
-SELECT * FROM attribuer_logement(5, '2024-05-01', '2024-05-15');
-
--- optimisation de l'occupation pour identifier les logements sous-utilises
-SELECT 
-    l.id_logement, 
-    l.type, 
-    l.emplacement, 
-    (SUM(r.date_fin - r.date_debut + 1) * 100.0) / 365 AS taux_utilisation
-FROM Logement l
-LEFT JOIN Reservation r ON l.id_logement = r.id_logement
-WHERE EXTRACT(YEAR FROM r.date_debut) = 2024
-GROUP BY l.id_logement, l.type, l.emplacement
-ORDER BY taux_utilisation ASC;
 
 
 
 
 
-
-
--- 1. Quel est le taux d'occupation actuel des logements ?
+-- Quel est le taux d'occupation actuel des logements ?
 SELECT 
     (COUNT(DISTINCT r.id_logement)::FLOAT / COUNT(l.id_logement)) * 100 AS taux_occupation
 FROM 
@@ -102,7 +115,7 @@ LEFT JOIN
 
 
 
--- 6. Quel est le temps moyen de séjour d'un résident dans un logement ?
+-- Quel est le temps moyen de séjour d'un résident dans un logement ?
 SELECT 
     AVG(DATE_PART('day', r.date_fin - r.date_debut)) AS temps_moyen_sejour
 FROM 
@@ -110,7 +123,7 @@ FROM
 
 
 
--- 13. Quel est le profil des résidents qui prolongent leur séjour par rapport à ceux qui ne prolongent pas ?
+-- Quel est le profil des résidents qui prolongent leur séjour par rapport à ceux qui ne prolongent pas ?
 
 SELECT 
     p.profession, 
@@ -127,7 +140,7 @@ ORDER BY nb_prolongations DESC;
 
 
 
--- 16. Quelles sont les tendances de réservation sur différentes périodes (mois, trimestre, année) ?
+-- Quelles sont les tendances de réservation sur différentes périodes (mois, trimestre, année) ?
 SELECT 
     DATE_TRUNC('month', date_debut) AS mois,
     COUNT(*) AS nombre_reservations
@@ -154,15 +167,14 @@ ORDER BY annee;
 
 
 
--- 18. Combien de résidents sont inscrits dans des activités régulières (cours, événements, etc.) ?
+-- Combien de résidents sont inscrits dans des activités régulières (cours, événements, etc.) ?
 SELECT COUNT(DISTINCT id_resident) AS nb_residents_actifs 
 FROM Participation;
 
 
 
 
-
--- 21. Comment les saisons affectent-elles la demande des logements ?
+-- Comment les saisons affectent-elles la demande des logements ?
 SELECT 
     CASE
         WHEN EXTRACT(MONTH FROM r.date_debut) IN (12, 1, 2) THEN 'Hiver'
@@ -175,6 +187,11 @@ FROM
     Reservation r
 GROUP BY 
     saison;
+
+
+-------------------
+----ASSIA---------
+--------------------
     
   -- 7. Quels logements ont le meilleur rapport qualité/prix en fonction des avis des résidents ?
   
