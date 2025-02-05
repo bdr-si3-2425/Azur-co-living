@@ -5,9 +5,9 @@ import os
 #connection AUTH
 def connect_db():
     return psycopg2.connect(
-        dbname="bdrproj", #change it
+        dbname="coliving", #change it
         user="postgres",
-        password="admin", #change it
+        password="123456", #change it
         host="localhost",
         port="5432"
     )

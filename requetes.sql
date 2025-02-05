@@ -34,77 +34,141 @@ select * from facture
 
 -- Quels logements sont disponibles pour une période donnée, selon des critères spécifiques (type, emplacement, prix) ?
 -- Pocedure stockée
-CREATE OR REPLACE PROCEDURE logements_disponibles(
-    IN p_date_debut DATE,
-    IN p_date_fin DATE,
-    IN p_type_logement VARCHAR(50),
-    IN p_emplacement VARCHAR(100),
-    IN p_loyer_max FLOAT
+CREATE OR REPLACE FUNCTION logements_disponibles(
+    p_date_debut DATE,
+    p_date_fin DATE,
+    p_type_logement VARCHAR(50),
+    p_emplacement VARCHAR(100),
+    p_loyer_min FLOAT,
+    p_loyer_max FLOAT
 )
-LANGUAGE plpgsql
-AS $$
+RETURNS TABLE (
+    id_logement INT,
+    emplacement VARCHAR(100),
+    surface FLOAT,
+    loyer FLOAT,
+    nombre_chambres INT,
+    type_logement VARCHAR(50)
+) AS
+$$
 BEGIN
-    -- Sélectionner et afficher les logements disponibles
-    SELECT l.id_logement, l.emplacement, l.loyer, t.type_logement
+    RETURN QUERY
+    SELECT 
+        l.id_logement,
+        l.emplacement,
+        l.surface,
+        l.loyer,
+        l.nombre_chambres,
+        t.type_logement
     FROM Logement l
     JOIN Type_logement t ON l.id_type_logement = t.id_type_logement
-    WHERE l.etat = 'Disponible'
-    AND t.type_logement ILIKE COALESCE(p_type_logement, t.type_logement)
-    AND l.emplacement ILIKE COALESCE(p_emplacement, l.emplacement)
-    AND l.loyer <= COALESCE(p_loyer_max, l.loyer)
-    AND l.id_logement NOT IN (
-        SELECT id_logement FROM Reservation 
-        WHERE (date_debut, date_fin) OVERLAPS (p_date_debut, p_date_fin)
-    );
+    WHERE l.id_logement NOT IN (
+        -- Exclure les logements qui sont réservés dans cette période
+        SELECT r.id_logement 
+        FROM Reservation r
+        WHERE (p_date_debut BETWEEN r.date_debut AND r.date_fin)
+           OR (p_date_fin BETWEEN r.date_debut AND r.date_fin)
+           OR (r.date_debut BETWEEN p_date_debut AND p_date_fin)
+           OR (r.date_fin BETWEEN p_date_debut AND p_date_fin)
+    )
+    AND l.etat = 'Disponible' -- Filtrer uniquement les logements disponibles
+    AND t.type_logement = p_type_logement
+    AND l.emplacement = p_emplacement
+    AND l.loyer BETWEEN p_loyer_min AND p_loyer_max;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
-select * from logement
---appel procedure
-CALL logements_disponibles('2024-02-01', '2024-06-10', 'Studio', 'Centre-ville', 1500);
+SELECT * FROM logements_disponibles(
+    '2025-03-01',   -- Date de début
+    '2025-03-15',   -- Date de fin
+    'Appartement',  -- Type de logement
+    'Paris',        -- Emplacement
+    500,            -- Loyer minimum
+    1500           -- Loyer maximum
+);
+
+
+
 
 
 
 -- Comment gérer les réservations et attribuer les logements aux nouveaux résidents en optimisant l’occupation ?
 -- Procedure stockee
-CREATE OR REPLACE PROCEDURE attribuer_logement(
-    IN p_id_resident INT,
-    IN p_date_debut DATE,
-    IN p_date_fin DATE
+CREATE OR REPLACE FUNCTION attribuer_logement_optimal(
+    p_id_resident INT,
+    p_date_debut DATE,
+    p_date_fin DATE,
+    p_type_logement VARCHAR(50),
+    p_emplacement VARCHAR(100),
+    p_loyer_max FLOAT
 )
-LANGUAGE plpgsql
-AS $$
+RETURNS TABLE (
+    id_logement INT,
+    emplacement VARCHAR(100),
+    surface FLOAT,
+    loyer FLOAT,
+    nombre_chambres INT,
+    type_logement VARCHAR(50),
+    status VARCHAR(50)
+) AS
+$$
 DECLARE
-    v_id_logement INT;
+    logement_disponible RECORD;
 BEGIN
-    -- Sélection du logement le moins cher disponible
-    SELECT id_logement INTO v_id_logement 
-    FROM Logement l
-    WHERE l.etat = 'Disponible'
-    AND l.id_logement NOT IN (
-        SELECT id_logement FROM Reservation 
-        WHERE (date_debut, date_fin) OVERLAPS (p_date_debut, p_date_fin)
-    )
-    ORDER BY l.loyer ASC 
-    LIMIT 1;
-
-    -- Vérifier si un logement a été trouvé
-    IF v_id_logement IS NULL THEN
-        RAISE EXCEPTION 'Aucun logement disponible pour cette période';
-    END IF;
-
-    -- Insérer la réservation
-    INSERT INTO Reservation (date_debut, date_fin, id_logement, id_resident)
-    VALUES (p_date_debut, p_date_fin, v_id_logement, p_id_resident);
-
-    -- Mettre à jour l'état du logement
-    UPDATE Logement SET etat = 'Occupé' WHERE id_logement = v_id_logement;
+    -- Trouver le logement optimal disponible
+    FOR logement_disponible IN
+        SELECT 
+            l.id_logement,
+            l.emplacement,
+            l.surface,
+            l.loyer,
+            l.nombre_chambres,
+            t.type_logement,
+            COUNT(r.id_reservation) AS nombre_reservations -- Prioriser ceux les moins réservés
+        FROM Logement l
+        JOIN Type_logement t ON l.id_type_logement = t.id_type_logement
+        LEFT JOIN Reservation r ON l.id_logement = r.id_logement
+        WHERE l.id_logement NOT IN (
+            -- Exclure les logements déjà réservés à ces dates
+            SELECT res.id_logement 
+            FROM Reservation res
+            WHERE (p_date_debut BETWEEN res.date_debut AND res.date_fin)
+               OR (p_date_fin BETWEEN res.date_debut AND res.date_fin)
+               OR (res.date_debut BETWEEN p_date_debut AND p_date_fin)
+               OR (res.date_fin BETWEEN p_date_debut AND p_date_fin)
+        )
+        AND l.etat = 'Disponible'
+        AND t.type_logement = p_type_logement
+        AND l.emplacement = p_emplacement
+        AND l.loyer <= p_loyer_max
+        GROUP BY l.id_logement, l.emplacement, l.surface, l.loyer, l.nombre_chambres, t.type_logement
+        ORDER BY nombre_reservations ASC, l.loyer ASC -- Prioriser les logements les moins réservés et les moins chers
+        LIMIT 1
+    LOOP
+        -- Insérer la réservation si un logement est trouvé
+        INSERT INTO Reservation (date_debut, date_fin, id_logement, id_resident)
+        VALUES (p_date_debut, p_date_fin, logement_disponible.id_logement, p_id_resident);
+        
+        RETURN QUERY 
+        SELECT logement_disponible.*, 'Réservation Confirmée' AS status;
+        
+        RETURN;
+    END LOOP;
+    
+    -- Si aucun logement disponible, retourner un message d'échec
+    RETURN QUERY 
+    SELECT NULL, NULL, NULL, NULL, NULL, NULL, 'Aucun logement disponible' AS status;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
---exemple d'utilisation
-CALL attribuer_logement(15, '2024-02-01', '2024-06-10');
-
+SELECT * FROM attribuer_logement_optimal(
+    10,              -- ID du résident
+    '2025-04-01',    -- Date de début
+    '2025-04-30',    -- Date de fin
+    'Appartement',   -- Type de logement
+    'Paris',         -- Emplacement
+    1200            -- Loyer maximum
+);
 
 
 
