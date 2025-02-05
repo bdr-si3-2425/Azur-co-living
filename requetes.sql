@@ -1,5 +1,5 @@
--- A. Quels logements sont disponibles pour une période donnée, selon des critères spécifiques (type, emplacement, prix) ?
---procedure stockée
+-- Quels logements sont disponibles pour une période donnée, selon des critères spécifiques (type, emplacement, prix) ?
+-- Pocedure stockée
 CREATE OR REPLACE FUNCTION logements_disponibles(
     p_date_debut DATE, 
     p_date_fin DATE, 

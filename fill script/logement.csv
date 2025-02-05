@@ -14,4 +14,4 @@ id_logement,emplacement,surface,loyer,nombre_chambres,id_type_logement
 13,"Banlieue",32.0,400,1,2
 14,"Zone commerciale",95.0,2200,4,4
 15,"Rue Nationale, Lyon",50.0,850,2,3
-16, "Centre-ville",50.0, 700, 2, 1,"Occupé"
+16, "Centre-ville",50.0, 700, 2, 1
