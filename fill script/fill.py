@@ -5,7 +5,7 @@ import os
 #connection AUTH
 def connect_db():
     return psycopg2.connect(
-        dbname="bdrproj", #change it
+        dbname="pull", #change it
         user="postgres",
         password="admin", #change it
         host="localhost",
