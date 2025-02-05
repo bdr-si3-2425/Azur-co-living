@@ -16,7 +16,7 @@
 
 ### 🎥 vidéo :
 
-📺 [Regarder la vidéo](https://1drv.ms/v/c/e09e2c1c0caa78fd/EcL86Fq9h_BOtR5262YaeAABMW3nSJPn5QgvFRLb-3w5Rg)
+📺 [Regarder la vidéo](https://1drv.ms/v/c/e09e2c1c0caa78fd/EcL86Fq9h_BOtR5262YaeAABMW3nSJPn5QgvFRLb-3w5Rg) <br>
 lien (cas ou le lien hypertext ne marche pas) : https://1drv.ms/v/c/e09e2c1c0caa78fd/EcL86Fq9h_BOtR5262YaeAABMW3nSJPn5QgvFRLb-3w5Rg
 
 
