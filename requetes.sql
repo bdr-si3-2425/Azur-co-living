@@ -34,43 +34,50 @@ select * from facture
 
 -- Quels logements sont disponibles pour une période donnée, selon des critères spécifiques (type, emplacement, prix) ?
 -- Pocedure stockée
-CREATE OR REPLACE FUNCTION logements_disponibles(
-    p_date_debut DATE,
-    p_date_fin DATE,
-    p_type_logement VARCHAR(50),
-    p_emplacement VARCHAR(100),
-    p_loyer_max FLOAT
-) 
-RETURNS TABLE(id_logement INT, emplacement VARCHAR, loyer FLOAT, type_logement VARCHAR) AS $$
+CREATE OR REPLACE PROCEDURE logements_disponibles(
+    IN p_date_debut DATE,
+    IN p_date_fin DATE,
+    IN p_type_logement VARCHAR(50),
+    IN p_emplacement VARCHAR(100),
+    IN p_loyer_max FLOAT
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    RETURN QUERY 
+    -- Création d'une table temporaire pour stocker les résultats
+    CREATE TEMP TABLE temp_logements_disponibles AS 
     SELECT l.id_logement, l.emplacement, l.loyer, t.type_logement
     FROM Logement l
     JOIN Type_logement t ON l.id_type_logement = t.id_type_logement
     WHERE l.etat = 'Disponible'
-    AND t.type_logement ILIKE COALESCE(p_type_logement, t.type_logement)
-    AND l.emplacement ILIKE COALESCE(p_emplacement, l.emplacement)
-    AND l.loyer <= COALESCE(p_loyer_max, l.loyer)
+    AND (p_type_logement IS NULL OR t.type_logement ILIKE p_type_logement)
+    AND (p_emplacement IS NULL OR l.emplacement ILIKE p_emplacement)
+    AND (p_loyer_max IS NULL OR l.loyer <= p_loyer_max)
     AND l.id_logement NOT IN (
         SELECT id_logement FROM Reservation 
         WHERE (date_debut, date_fin) OVERLAPS (p_date_debut, p_date_fin)
     );
-END; 
-$$ LANGUAGE plpgsql;
+END;
+$$;
+--exemple d'utilisation
+CALL logements_disponibles('2025-03-01', '2025-03-15', 'Appartement', 'Paris', 1500);
+SELECT * FROM temp_logements_disponibles;
+
 
 
 -- Comment gérer les réservations et attribuer les logements aux nouveaux résidents en optimisant l’occupation ?
 -- Procedure stockee
-CREATE OR REPLACE FUNCTION attribuer_logement(
-    p_id_resident INT,
-    p_date_debut DATE,
-    p_date_fin DATE
-) RETURNS INT AS $$
-DECLARE
-    v_id_logement INT;
+CREATE OR REPLACE PROCEDURE attribuer_logement(
+    IN p_id_resident INT,
+    IN p_date_debut DATE,
+    IN p_date_fin DATE,
+    OUT v_id_logement INT
+)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    -- Sélection du logement le moins cher disponible pour la période
-    SELECT id_logement INTO v_id_logement 
+    -- Sélection du logement disponible le moins cher
+    SELECT id_logement INTO v_id_logement
     FROM Logement l
     WHERE l.etat = 'Disponible'
     AND l.id_logement NOT IN (
@@ -80,21 +87,28 @@ BEGIN
     ORDER BY l.loyer ASC 
     LIMIT 1;
 
-    -- Vérifier si un logement a été trouvé
+    -- Vérification de la disponibilité d'un logement
     IF v_id_logement IS NULL THEN
         RAISE EXCEPTION 'Aucun logement disponible pour cette période';
     END IF;
 
-    -- Insérer la réservation
+    -- Création de la réservation
     INSERT INTO Reservation (date_debut, date_fin, id_logement, id_resident)
     VALUES (p_date_debut, p_date_fin, v_id_logement, p_id_resident);
 
-    -- Mettre à jour l'état du logement
-    UPDATE Logement SET etat = 'Occupé' WHERE id_logement = v_id_logement;
-
-    RETURN v_id_logement;
+    -- Mise à jour de l'état du logement
+    UPDATE Logement 
+    SET etat = 'Occupé' 
+    WHERE id_logement = v_id_logement;
+    
+    -- Affichage du logement attribué
+    RAISE NOTICE 'Logement % attribué au résident %', v_id_logement, p_id_resident;
 END;
-$$ LANGUAGE plpgsql;
+$$;
+
+
+--exemple d'utilisation
+CALL attribuer_logement(5, '2025-03-01', '2025-03-15', NULL);
 
 
 
@@ -109,8 +123,6 @@ FROM
 LEFT JOIN 
     Reservation r ON r.id_logement = l.id_logement
     AND r.date_fin >= CURRENT_DATE;
-
-
 
 
 
