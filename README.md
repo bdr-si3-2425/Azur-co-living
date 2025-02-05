@@ -21,3 +21,7 @@ Assurez-vous d'installer les bibliothèques nécessaires avant l'exécution :
 ```bash
 pip install psycopg2
 pip install pandas
+
+### 🎥 vidéo :
+
+📺 [Regarder la vidéo](https://1drv.ms/v/c/e09e2c1c0caa78fd/EcL86Fq9h_BOtR5262YaeAABMW3nSJPn5QgvFRLb-3w5Rg)  
