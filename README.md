@@ -14,6 +14,11 @@
 3. **Gestion des données**  
    - En cas d'ajout de nouvelles valeurs, exécutez `reset.sql` pour éviter les erreurs de duplication.  
 
+### 🎥 vidéo :
+
+📺 [Regarder la vidéo](https://1drv.ms/v/c/e09e2c1c0caa78fd/EcL86Fq9h_BOtR5262YaeAABMW3nSJPn5QgvFRLb-3w5Rg)  
+
+
 ### 📦 Dépendances  
 
 Assurez-vous d'installer les bibliothèques nécessaires avant l'exécution :  
@@ -22,6 +27,3 @@ Assurez-vous d'installer les bibliothèques nécessaires avant l'exécution :
 pip install psycopg2
 pip install pandas
 
-### 🎥 vidéo :
-
-📺 [Regarder la vidéo](https://1drv.ms/v/c/e09e2c1c0caa78fd/EcL86Fq9h_BOtR5262YaeAABMW3nSJPn5QgvFRLb-3w5Rg)  
